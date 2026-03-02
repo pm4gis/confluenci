@@ -40,3 +40,5 @@ Troubleshooting
 
 
 Update: /api/auth now auto-initialises the database schema on first login if tables are missing.
+
+Fix: auth schema initialiser now repairs partial D1 schemas (creates sessions table if missing).

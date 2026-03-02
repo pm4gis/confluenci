@@ -26,12 +26,7 @@ function setCookie(sessionId) {
 }
 
 async function ensureSchema(env) {
-  const t = await env.DB.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
-  ).first();
-
-  if (t && t.name === "users") return;
-
+  // Always run CREATE TABLE IF NOT EXISTS so partial schemas get repaired.
   const stmts = [
     "PRAGMA foreign_keys=ON;",
     "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at TEXT DEFAULT (datetime('now')));",
@@ -47,18 +42,11 @@ async function ensureSchema(env) {
     "CREATE TABLE IF NOT EXISTS attachments (id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER NOT NULL, filename TEXT NOT NULL, r2_key TEXT NOT NULL, size_bytes INTEGER NOT NULL DEFAULT 0, content_type TEXT NOT NULL DEFAULT 'application/octet-stream', uploaded_at TEXT DEFAULT (datetime('now')), FOREIGN KEY(page_id) REFERENCES pages(id) ON DELETE CASCADE);",
     "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', created_at TEXT DEFAULT (datetime('now')));",
     "CREATE TABLE IF NOT EXISTS search_index (page_id INTEGER PRIMARY KEY, space_id INTEGER NOT NULL, title TEXT NOT NULL, body_text TEXT NOT NULL, updated_at TEXT NOT NULL);",
+    "INSERT INTO users (username, password_hash, role) SELECT 'admin','admin','admin' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin');",
     "INSERT INTO spaces (space_key, name, description, colour) SELECT 'COFFEE', 'Coffee Example', 'Example pages about coffee', '#1e293b' WHERE NOT EXISTS (SELECT 1 FROM spaces);",
-    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, NULL, 1, 'Home', '<h2>Welcome</h2><p>Use the sidebar to browse and edit pages.</p>', 'example,coffee', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages WHERE space_id=s.id);",
-    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, (SELECT id FROM pages p WHERE p.space_id=s.id AND p.title='Home' LIMIT 1), 1, 'Espresso', '<h2>Espresso</h2><p>18g in, 36g out, 25 to 30 seconds.</p>', 'coffee,guide', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.space_id=s.id AND p.title='Espresso');",
-    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, (SELECT id FROM pages p WHERE p.space_id=s.id AND p.title='Home' LIMIT 1), 2, 'French Press', '<h2>French Press</h2><p>Coarse grind. 4 minutes steep.</p>', 'coffee,guide', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.space_id=s.id AND p.title='French Press');",
-    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, (SELECT id FROM pages p WHERE p.space_id=s.id AND p.title='Home' LIMIT 1), 3, 'Aeropress', '<h2>Aeropress</h2><p>Fast brew with paper filter.</p>', 'coffee,guide', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.space_id=s.id AND p.title='Aeropress');",
-    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, (SELECT id FROM pages p WHERE p.space_id=s.id AND p.title='Home' LIMIT 1), 4, 'Coffee History', '<h2>Coffee History</h2><p>From Ethiopia to the world.</p>', 'coffee,history', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.space_id=s.id AND p.title='Coffee History');",
-    "INSERT INTO users (username, password_hash, role) SELECT 'admin','admin','admin' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin');"
+    "INSERT INTO pages (space_id, parent_id, sort_order, title, body_html, labels_csv, owner_username) SELECT s.id, NULL, 1, 'Home', '<h2>Welcome</h2><p>Use the sidebar to browse and edit pages.</p>', 'example,coffee', 'admin' FROM spaces s WHERE s.space_key='COFFEE' AND NOT EXISTS (SELECT 1 FROM pages WHERE space_id=s.id);"
   ];
-
-  for (const s of stmts) {
-    await env.DB.prepare(s).run();
-  }
+  for (const s of stmts) await env.DB.prepare(s).run();
 }
 
 export async function onRequestPost({ request, env }) {
