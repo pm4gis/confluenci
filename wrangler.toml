@@ -6,7 +6,7 @@ pages_build_output_dir = "./public"
 [[d1_databases]]
 binding = "DB"
 database_name = "firewall_wiki_db"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "3275c7da-7a63-44d3-886f-9c3b2bc58339"
 
 [[r2_buckets]]
 binding = "ATTACHMENTS"
