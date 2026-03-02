@@ -37,3 +37,6 @@ Connect the GitHub repo to Pages, or use direct upload.
 Troubleshooting
 - If Functions deploy fails with REPLACE_WITH_YOUR_D1_ID, the deployed wrangler.toml still has the placeholder.
 - If /api/spaces returns 401, you are not logged in.
+
+
+Update: /api/auth now auto-initialises the database schema on first login if tables are missing.
