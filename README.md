@@ -1,27 +1,39 @@
+Firewall Wiki CF
 
-Firewall Wiki CF - COMPLETE BUILD
+What this is
+- A static site on Cloudflare Pages
+- API endpoints using Cloudflare Pages Functions
+- Data stored in Cloudflare D1
+- Attachments stored in Cloudflare R2
 
-Deployment Steps:
+Login
+- First login bootstraps admin/admin if there are no users.
 
-1. Create D1 database in Cloudflare.
-2. Replace database_id in wrangler.toml.
-3. Run:
-   wrangler d1 execute firewall_wiki_db --file=./schema.sql
-4. Create R2 bucket named firewall-wiki-attachments.
-5. Deploy this folder to Cloudflare Pages.
+Deploy
 
-Admin bootstrap:
-INSERT INTO users (username,password_hash,role)
-VALUES ('admin','admin','admin');
+1) Create D1 database
+Cloudflare Dashboard -> D1 -> Create
 
-This package contains:
-- D1 schema
-- Spaces
-- Pages
-- Version foundation
-- Comments
-- Reactions
-- Tasks
-- Notifications
-- Audit
-- Attachments (R2 ready)
+2) Put the database UUID in wrangler.toml
+database_id must be the D1 UUID.
+
+3) Apply schema to the D1 database (run on your PC)
+Open PowerShell in the folder that contains schema.sql and wrangler.toml, then run:
+wrangler login
+wrangler d1 execute firewall_wiki_db --file=schema.sql --remote
+
+4) Create R2 bucket
+Cloudflare Dashboard -> R2 -> Create bucket
+Bucket name must be: firewall-wiki-attachments
+
+5) Bind D1 and R2 to the Pages project
+Cloudflare Dashboard -> Workers & Pages -> your project -> Settings -> Functions -> Bindings
+- D1 binding: variable DB, select your database
+- R2 binding: variable ATTACHMENTS, select your bucket
+
+6) Deploy
+Connect the GitHub repo to Pages, or use direct upload.
+
+Troubleshooting
+- If Functions deploy fails with REPLACE_WITH_YOUR_D1_ID, the deployed wrangler.toml still has the placeholder.
+- If /api/spaces returns 401, you are not logged in.

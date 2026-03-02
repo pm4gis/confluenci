@@ -57,32 +57,10 @@ export async function onRequestGet({ request, env }) {
   if (!user) return json({ ok:false, error:"Unauthorised" }, 401);
 
   const rows = await env.DB.prepare(
-    "SELECT id, space_key, name, description, colour, archived FROM spaces ORDER BY archived, name"
-  ).all();
+    "SELECT id, message, link, read, created_at FROM notifications WHERE username=? ORDER BY id DESC LIMIT 200"
+  ).bind(user.username).all();
 
-  return json({ ok:true, spaces: rows.results || [] });
-}
-
-export async function onRequestPost({ request, env }) {
-  const user = await requireUser(request, env);
-  if (!user) return json({ ok:false, error:"Unauthorised" }, 401);
-
-  const body = await request.json().catch(() => ({}));
-  const space_key = String(body.space_key || "").trim().toUpperCase();
-  const name = String(body.name || "").trim();
-  const description = String(body.description || "").trim();
-  const colour = String(body.colour || "#1e293b").trim();
-
-  if (!space_key || !name) return json({ ok:false, error:"Space key and name required" }, 400);
-
-  await env.DB.prepare(
-    "INSERT INTO spaces (space_key, name, description, colour) VALUES (?,?,?,?)"
-  ).bind(space_key, name, description, colour).run();
-
-  const created = await env.DB.prepare("SELECT id FROM spaces WHERE space_key=?").bind(space_key).first();
-  await audit(env, user.username, "create_space", "space", created?.id || space_key, { space_key, name });
-
-  return json({ ok:true });
+  return json({ ok:true, notifications: rows.results || [] });
 }
 
 export async function onRequestPut({ request, env }) {
@@ -91,17 +69,11 @@ export async function onRequestPut({ request, env }) {
 
   const body = await request.json().catch(() => ({}));
   const id = Number(body.id || 0);
-  const name = String(body.name || "").trim();
-  const description = String(body.description || "").trim();
-  const colour = String(body.colour || "").trim();
-  const archived = body.archived ? 1 : 0;
+  const read = body.read ? 1 : 0;
+  if (!id) return json({ ok:false, error:"id required" }, 400);
 
-  if (!id || !name) return json({ ok:false, error:"id and name required" }, 400);
+  await env.DB.prepare("UPDATE notifications SET read=? WHERE id=? AND username=?")
+    .bind(read, id, user.username).run();
 
-  await env.DB.prepare(
-    "UPDATE spaces SET name=?, description=?, colour=COALESCE(NULLIF(?,''), colour), archived=? WHERE id=?"
-  ).bind(name, description, colour, archived, id).run();
-
-  await audit(env, user.username, "update_space", "space", id, { name, archived });
   return json({ ok:true });
 }

@@ -56,11 +56,15 @@ export async function onRequestGet({ request, env }) {
   const user = await requireUser(request, env);
   if (!user) return json({ ok:false, error:"Unauthorised" }, 401);
 
-  const rows = await env.DB.prepare(
-    "SELECT id, space_key, name, description, colour, archived FROM spaces ORDER BY archived, name"
-  ).all();
+  const url = new URL(request.url);
+  const page_id = Number(url.searchParams.get("page_id") || 0);
+  if (!page_id) return json({ ok:false, error:"page_id required" }, 400);
 
-  return json({ ok:true, spaces: rows.results || [] });
+  const rows = await env.DB.prepare(
+    "SELECT emoji, COUNT(*) as count FROM reactions WHERE page_id=? GROUP BY emoji"
+  ).bind(page_id).all();
+
+  return json({ ok:true, counts: rows.results || [] });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -68,40 +72,14 @@ export async function onRequestPost({ request, env }) {
   if (!user) return json({ ok:false, error:"Unauthorised" }, 401);
 
   const body = await request.json().catch(() => ({}));
-  const space_key = String(body.space_key || "").trim().toUpperCase();
-  const name = String(body.name || "").trim();
-  const description = String(body.description || "").trim();
-  const colour = String(body.colour || "#1e293b").trim();
-
-  if (!space_key || !name) return json({ ok:false, error:"Space key and name required" }, 400);
+  const page_id = Number(body.page_id || 0);
+  const emoji = String(body.emoji || "").trim();
+  if (!page_id || !emoji) return json({ ok:false, error:"page_id and emoji required" }, 400);
 
   await env.DB.prepare(
-    "INSERT INTO spaces (space_key, name, description, colour) VALUES (?,?,?,?)"
-  ).bind(space_key, name, description, colour).run();
+    "INSERT OR REPLACE INTO reactions (page_id, username, emoji) VALUES (?,?,?)"
+  ).bind(page_id, user.username, emoji).run();
 
-  const created = await env.DB.prepare("SELECT id FROM spaces WHERE space_key=?").bind(space_key).first();
-  await audit(env, user.username, "create_space", "space", created?.id || space_key, { space_key, name });
-
-  return json({ ok:true });
-}
-
-export async function onRequestPut({ request, env }) {
-  const user = await requireUser(request, env);
-  if (!user) return json({ ok:false, error:"Unauthorised" }, 401);
-
-  const body = await request.json().catch(() => ({}));
-  const id = Number(body.id || 0);
-  const name = String(body.name || "").trim();
-  const description = String(body.description || "").trim();
-  const colour = String(body.colour || "").trim();
-  const archived = body.archived ? 1 : 0;
-
-  if (!id || !name) return json({ ok:false, error:"id and name required" }, 400);
-
-  await env.DB.prepare(
-    "UPDATE spaces SET name=?, description=?, colour=COALESCE(NULLIF(?,''), colour), archived=? WHERE id=?"
-  ).bind(name, description, colour, archived, id).run();
-
-  await audit(env, user.username, "update_space", "space", id, { name, archived });
+  await audit(env, user.username, "react", "page", page_id, { emoji });
   return json({ ok:true });
 }
