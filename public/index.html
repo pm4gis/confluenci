@@ -1,0 +1,26 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Firewall Wiki CF</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+<div id="sidebar">
+<h2>Firewall Wiki</h2>
+<button onclick="loadSpaces()">Refresh Spaces</button>
+<ul id="spaces"></ul>
+</div>
+<div id="main">
+<h2 id="pageTitle"></h2>
+<div id="editor" class="editor"></div>
+<button onclick="savePage()">Save</button>
+<div id="comments"></div>
+<div id="tasks"></div>
+</div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
